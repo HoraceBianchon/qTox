@@ -45,7 +45,7 @@ while running on all major platforms.
 
 Windows | Linux | OS X | FreeBSD
 --------|-------|------|--------
-**[64 bit release]**| **[Arch]**, **[Gentoo]** | **[Latest release]**  | **[Package & Port]**
+**[64 bit release]**| **[Arch]**, **[Fedora]**, **[Gentoo]** | **[Latest release]**  | **[Package & Port]**
 [32 bit release]| | [Building instructions] |
 [64 bit][64nightly], [32 bit][32nightly] nigthly | [Other] | |
 
@@ -115,7 +115,7 @@ and possibly other stuff.
 Active qTox maintainers:
 
 ```
-74AD B7A7 F8EC C100 9916  C4E4 2AA8 E0DA 1B31 FB3C      - Anthony Bilinski
+7EB3 39FE 8817 47E7 01B7  D472 EBE3 6E66 A842 9B99      - Anthony Bilinski
 3103 9166 FA90 2CA5 0D05  D608 5AF9 F2E2 9107 C727      – Diadlo
 C7A2 552D 0B25 0F98 3827  742C 1332 03A3 AC39 9151      – initramfs
 CA92 21C5 389B 7C50 AA5F  7793 52A5 0775 BE13 DF17      - noavarice
@@ -149,6 +149,7 @@ AED3 1134 9C23 A123 E5C4  AA4B 139C A045 3DA2 D773
 [Contributing]: /CONTRIBUTING.md#how-to-start-contributing
 [easy issues]: https://github.com/qTox/qTox/labels/E-easy
 [Latest release]: https://github.com/qTox/qTox/releases/latest
+[Fedora]: /INSTALL.md#fedora
 [Gentoo]: /INSTALL.md#gentoo
 [Install/Build]: /INSTALL.md
 [IRC logs]: https://github.com/qTox/qtox-irc-logs
