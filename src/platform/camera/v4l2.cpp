@@ -1,7 +1,7 @@
 /*
     Copyright (c) 2000,2001 Fabrice Bellard
     Copyright (c) 2006 Luca Abeni
-    Copyright © 2015 by The qTox Project Contributors
+    Copyright © 2015-2018 by The qTox Project Contributors
 
     This file is part of qTox, a Qt-based graphical interface for Tox.
 
@@ -171,7 +171,7 @@ QVector<VideoMode> v4l2::getDeviceModes(QString devName)
 QVector<QPair<QString, QString>> v4l2::getDeviceList()
 {
     QVector<QPair<QString, QString>> devices;
-    QVector<QString> deviceFiles;
+    QStringList deviceFiles;
 
     DIR* dir = opendir("/dev");
     if (!dir)

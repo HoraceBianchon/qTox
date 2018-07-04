@@ -1,5 +1,5 @@
 /*
-    Copyright © 2014-2016 by The qTox Project Contributors
+    Copyright © 2014-2018 by The qTox Project Contributors
 
     This file is part of qTox, a Qt-based graphical interface for Tox.
 
@@ -53,10 +53,15 @@ AboutForm::AboutForm()
     if (QString(GIT_VERSION).indexOf(" ") > -1)
         bodyUI->gitVersion->setOpenExternalLinks(false);
 
+#if AUTOUPDATE_ENABLED
     showUpdateProgress();
     progressTimer->setInterval(500);
     progressTimer->setSingleShot(false);
     connect(progressTimer, &QTimer::timeout, this, &AboutForm::showUpdateProgress);
+#else
+    bodyUI->updateProgress->setVisible(false);
+    bodyUI->updateText->setVisible(false);
+#endif
 
     eventsInit();
     Translator::registerHandler(std::bind(&AboutForm::retranslateUi, this), this);
@@ -165,7 +170,7 @@ AboutForm::~AboutForm()
  */
 void AboutForm::showUpdateProgress()
 {
-#ifdef AUTOUPDATE_ENABLED
+#if AUTOUPDATE_ENABLED
     QString version = AutoUpdater::getProgressVersion();
     int value = AutoUpdater::getProgressValue();
 
@@ -188,12 +193,16 @@ void AboutForm::showUpdateProgress()
 
 void AboutForm::hideEvent(QHideEvent*)
 {
+#if AUTOUPDATE_ENABLED
     progressTimer->stop();
+#endif
 }
 
 void AboutForm::showEvent(QShowEvent*)
 {
+#if AUTOUPDATE_ENABLED
     progressTimer->start();
+#endif
 }
 
 /**

@@ -1,5 +1,5 @@
 /*
-    Copyright © 2015-2017 by The qTox Project Contributors
+    Copyright © 2015-2018 by The qTox Project Contributors
 
     This file is part of qTox, a Qt-based graphical interface for Tox.
 
@@ -49,7 +49,7 @@
  * @brief True if the profile has been removed by remove().
  */
 
-QVector<QString> Profile::profiles;
+QStringList Profile::profiles;
 
 Profile::Profile(QString name, const QString& password, bool isNewProfile, const QByteArray& toxsave)
     : name{name}
@@ -69,6 +69,12 @@ Profile::Profile(QString name, const QString& password, bool isNewProfile, const
     core->moveToThread(coreThread);
     QObject::connect(coreThread, &QThread::started, core, [=]() {
         core->start(toxsave);
+
+        // prevent segfault by checking if core started successfully
+        if(!core->isReady()) {
+            qWarning() << "Core not ready, aborting";
+            return;
+        }
 
         const ToxPk selfPk = core->getSelfPublicKey();
         QByteArray data = loadAvatarData(selfPk);
@@ -236,10 +242,10 @@ Profile::~Profile()
  * @param extension Raw extension, e.g. "jpeg" not ".jpeg".
  * @return Vector of filenames.
  */
-QVector<QString> Profile::getFilesByExt(QString extension)
+QStringList Profile::getFilesByExt(QString extension)
 {
     QDir dir(Settings::getInstance().getSettingsDirPath());
-    QVector<QString> out;
+    QStringList out;
     dir.setFilter(QDir::Files | QDir::NoDotAndDotDot);
     dir.setNameFilters(QStringList("*." + extension));
     QFileInfoList list = dir.entryInfoList();
@@ -258,7 +264,7 @@ QVector<QString> Profile::getFilesByExt(QString extension)
 void Profile::scanProfiles()
 {
     profiles.clear();
-    QVector<QString> toxfiles = getFilesByExt("tox"), inifiles = getFilesByExt("ini");
+    QStringList toxfiles = getFilesByExt("tox"), inifiles = getFilesByExt("ini");
     for (QString toxfile : toxfiles) {
         if (!inifiles.contains(toxfile)) {
             Settings::getInstance().createPersonal(toxfile);
@@ -268,7 +274,7 @@ void Profile::scanProfiles()
     }
 }
 
-QVector<QString> Profile::getProfiles()
+QStringList Profile::getProfiles()
 {
     return profiles;
 }
@@ -630,7 +636,7 @@ bool Profile::isEncrypted(QString name)
  * @return Vector of filenames that could not be removed.
  * @warning It is invalid to call loadToxSave or saveToxSave on a deleted profile.
  */
-QVector<QString> Profile::remove()
+QStringList Profile::remove()
 {
     if (isRemoved) {
         qWarning() << "Profile " << name << " is already removed!";
@@ -651,7 +657,7 @@ QVector<QString> Profile::remove()
     QFile profileMain{path + ".tox"};
     QFile profileConfig{path + ".ini"};
 
-    QVector<QString> ret;
+    QStringList ret;
 
     if (!profileMain.remove() && profileMain.exists()) {
         ret.push_back(profileMain.fileName());

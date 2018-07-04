@@ -26,15 +26,6 @@
 # - Doesn't build qTox updater, because it wasn't ported to cmake yet and
 #   because it requires static Qt, which means we'd need to build Qt twice, and
 #   building Qt takes really long time.
-#
-# - Doesn't create an installer because there is no NSIS 3 in Debian Stable. We
-#   could backport it from Experimental, which is what we do on Jenkins, but
-#   since we don't build an updater, we might as well just do the nightly qTox
-#   build: no updater, no installer.
-#
-# - FFmpeg 3.3 doesn't cross-compile correctly, qTox build fails when linking
-#   against the 3.3 FFmpeg. They have removed `--enable-memalign-hack` switch,
-#   which might be what causes this. Further research needed.
 
 
 set -euo pipefail
@@ -43,7 +34,6 @@ set -euo pipefail
 # Common directory paths
 
 readonly WORKSPACE_DIR="/workspace"
-readonly SCRIPT_DIR="/script"
 readonly QTOX_SRC_DIR="/qtox"
 
 
@@ -54,9 +44,9 @@ then
   exit 1
 fi
 
-if [ ! -d "$WORKSPACE_DIR" ] || [ ! -d "$SCRIPT_DIR" ] || [ ! -d "$QTOX_SRC_DIR" ]
+if [ ! -d "$WORKSPACE_DIR" ] || [ ! -d "$QTOX_SRC_DIR" ]
 then
-  echo "Error: At least one of $WORKSPACE_DIR, $SCRIPT_DIR or $QTOX_SRC_DIR directories is missing."
+  echo "Error: At least one of $WORKSPACE_DIR or $QTOX_SRC_DIR directories is missing."
   exit 1
 fi
 
@@ -124,12 +114,13 @@ apt-get install -y --no-install-recommends \
                    cmake \
                    git \
                    libtool \
-                   nsis \
                    pkg-config \
                    tclsh \
                    unzip \
                    wget \
-                   yasm
+                   yasm \
+                   zip
+
 if [[ "$ARCH" == "i686" ]]
 then
   apt-get install -y --no-install-recommends \
@@ -219,17 +210,19 @@ strip_all()
 # OpenSSL
 
 OPENSSL_PREFIX_DIR="$DEP_DIR/libopenssl"
-OPENSSL_VERSION=1.0.2m
-OPENSSL_HASH="8c6ff15ec6b319b50788f42c7abc2890c08ba5a1cdcd3810eb9092deada37b0f"
+OPENSSL_VERSION=1.0.2o
+# hash from https://www.openssl.org/source/
+OPENSSL_HASH="ec3f5c9714ba0fd45cb4e087301eb1336c317e0d20b575a125050470e8089e4d"
+OPENSSL_FILENAME="openssl-$OPENSSL_VERSION.tar.gz"
 if [ ! -f "$OPENSSL_PREFIX_DIR/done" ]
 then
   rm -rf "$OPENSSL_PREFIX_DIR"
   mkdir -p "$OPENSSL_PREFIX_DIR"
 
-  wget https://www.openssl.org/source/openssl-$OPENSSL_VERSION.tar.gz
-  check_sha256 "$OPENSSL_HASH" "openssl-$OPENSSL_VERSION.tar.gz"
-  bsdtar --no-same-owner --no-same-permissions -xf openssl*.tar.gz
-  rm openssl*.tar.gz
+  wget "https://www.openssl.org/source/$OPENSSL_FILENAME"
+  check_sha256 "$OPENSSL_HASH" "$OPENSSL_FILENAME"
+  bsdtar --no-same-owner --no-same-permissions -xf "$OPENSSL_FILENAME"
+  rm $OPENSSL_FILENAME
   cd openssl*
 
   CONFIGURE_OPTIONS="--prefix=$OPENSSL_PREFIX_DIR shared"
@@ -260,28 +253,26 @@ fi
 QT_PREFIX_DIR="$DEP_DIR/libqt5"
 QT_MAJOR=5
 QT_MINOR=9
-QT_PATCH=3
+QT_PATCH=6
 QT_VERSION=$QT_MAJOR.$QT_MINOR.$QT_PATCH
-QT_HASH="57acd8f03f830c2d7dc29fbe28aaa96781b2b9bdddce94196e6761a0f88c6046"
+# hash from https://download.qt.io/archive/qt/5.9/5.9.6/single/qt-everywhere-opensource-src-5.9.6.tar.xz.mirrorlist
+QT_HASH="dacc995ae3a7cdad80eb9fdf6470299a8fac41f468a9bb941670ece523b62af4"
+QT_FILENAME="qt-everywhere-opensource-src-$QT_VERSION.tar.xz"
 if [ ! -f "$QT_PREFIX_DIR/done" ]
 then
   rm -rf "$QT_PREFIX_DIR"
   mkdir -p "$QT_PREFIX_DIR"
 
-  wget https://download.qt.io/official_releases/qt/$QT_MAJOR.$QT_MINOR/$QT_VERSION/single/qt-everywhere-opensource-src-$QT_VERSION.tar.xz
-  check_sha256 "$QT_HASH" "qt-everywhere-opensource-src-$QT_VERSION.tar.xz"
-  bsdtar --no-same-owner --no-same-permissions -xf qt*.tar.xz
-  rm qt*.tar.xz
+  wget "https://download.qt.io/official_releases/qt/$QT_MAJOR.$QT_MINOR/$QT_VERSION/single/$QT_FILENAME"
+  check_sha256 "$QT_HASH" "$QT_FILENAME"
+  bsdtar --no-same-owner --no-same-permissions -xf $QT_FILENAME
+  rm $QT_FILENAME
   cd qt*
 
   export PKG_CONFIG_PATH="$OPENSSL_PREFIX_DIR/lib/pkgconfig"
   export OPENSSL_LIBS="$(pkg-config --libs openssl)"
 
-  # Fix https://bugreports.qt.io/browse/QTBUG-63637 present in Qt 5.9.2
-  echo "QMAKE_LINK_OBJECT_MAX = 10" >> qtbase/mkspecs/win32-g++/qmake.conf
-  echo "QMAKE_LINK_OBJECT_SCRIPT = object_script" >> qtbase/mkspecs/win32-g++/qmake.conf
-
-  # So, apparently Travis CI terminate a build if it generates more than 4mb of output
+  # So, apparently Travis CI terminates a build if it generates more than 4mb of stdout output
   # which happens when building Qt
   CONFIGURE_EXTRA=""
   set +u
@@ -379,17 +370,18 @@ set -u
 # SQLCipher
 
 SQLCIPHER_PREFIX_DIR="$DEP_DIR/libsqlcipher"
-SQLCIPHER_VERSION=v3.4.1
-SQLCIPHER_HASH="4172cc6e5a79d36e178d36bd5cc467a938e08368952659bcd95eccbaf0fa4ad4"
+SQLCIPHER_VERSION=v3.4.2
+SQLCIPHER_HASH="69897a5167f34e8a84c7069f1b283aba88cdfa8ec183165c4a5da2c816cfaadb"
+SQLCIPHER_FILENAME="$SQLCIPHER_VERSION.tar.gz"
 if [ ! -f "$SQLCIPHER_PREFIX_DIR/done" ]
 then
   rm -rf "$SQLCIPHER_PREFIX_DIR"
   mkdir -p "$SQLCIPHER_PREFIX_DIR"
 
-  wget https://github.com/sqlcipher/sqlcipher/archive/$SQLCIPHER_VERSION.tar.gz -O sqlcipher.tar.gz
-  check_sha256 "$SQLCIPHER_HASH" "sqlcipher.tar.gz"
-  bsdtar --no-same-owner --no-same-permissions -xf sqlcipher.tar.gz
-  rm sqlcipher.tar.gz
+  wget "https://github.com/sqlcipher/sqlcipher/archive/$SQLCIPHER_FILENAME"
+  check_sha256 "$SQLCIPHER_HASH" "$SQLCIPHER_FILENAME"
+  bsdtar --no-same-owner --no-same-permissions -xf "$SQLCIPHER_FILENAME"
+  rm $SQLCIPHER_FILENAME
   cd sqlcipher*
 
   sed -i s/'LIBS="-lcrypto  $LIBS"'/'LIBS="-lcrypto -lgdi32  $LIBS"'/g configure
@@ -404,8 +396,8 @@ then
 @@ -1074,7 +1074,7 @@
     $(TOP)/ext/fts5/fts5_varint.c \
     $(TOP)/ext/fts5/fts5_vocab.c  \
- 
--fts5parse.c:	$(TOP)/ext/fts5/fts5parse.y lemon 
+
+-fts5parse.c:	$(TOP)/ext/fts5/fts5parse.y lemon
 +fts5parse.c:	$(TOP)/ext/fts5/fts5parse.y lemon$(BEXE)
  	cp $(TOP)/ext/fts5/fts5parse.y .
  	rm -f fts5parse.h
@@ -438,17 +430,18 @@ fi
 # FFmpeg
 
 FFMPEG_PREFIX_DIR="$DEP_DIR/libffmpeg"
-FFMPEG_VERSION=3.2.9
-FFMPEG_HASH="1131d37890ed3dcbc3970452b200a56ceb36b73eaa51d1c23c770c90f928537f"
+FFMPEG_VERSION=4.0.1
+FFMPEG_HASH="605f5c01c60db35d3b617a79cabb2c7032412be243554602eeed1b628125c0ee"
+FFMPEG_FILENAME="ffmpeg-$FFMPEG_VERSION.tar.xz"
 if [ ! -f "$FFMPEG_PREFIX_DIR/done" ]
 then
   rm -rf "$FFMPEG_PREFIX_DIR"
   mkdir -p "$FFMPEG_PREFIX_DIR"
 
-  wget https://www.ffmpeg.org/releases/ffmpeg-$FFMPEG_VERSION.tar.xz
-  check_sha256 "$FFMPEG_HASH" "ffmpeg-$FFMPEG_VERSION.tar.xz"
-  bsdtar --no-same-owner --no-same-permissions -xf ffmpeg*.tar.xz
-  rm ffmpeg*.tar.xz
+  wget "https://www.ffmpeg.org/releases/$FFMPEG_FILENAME"
+  check_sha256 "$FFMPEG_HASH" "$FFMPEG_FILENAME"
+  bsdtar --no-same-owner --no-same-permissions -xf $FFMPEG_FILENAME
+  rm $FFMPEG_FILENAME
   cd ffmpeg*
 
   if [[ "$ARCH" == "x86_64"* ]]
@@ -460,6 +453,7 @@ then
   fi
 
   ./configure $CONFIGURE_OPTIONS \
+              --enable-gpl \
               --prefix="$FFMPEG_PREFIX_DIR" \
               --target-os="mingw32" \
               --cross-prefix="$ARCH-w64-mingw32-" \
@@ -467,11 +461,12 @@ then
               --extra-cflags="-static -O2 -g0" \
               --extra-ldflags="-lm -static" \
               --pkg-config-flags="--static" \
+              --disable-debug \
               --disable-shared \
               --disable-programs \
               --disable-protocols \
               --disable-doc \
-              --disable-sdl \
+              --disable-sdl2 \
               --disable-avfilter \
               --disable-avresample \
               --disable-filters \
@@ -499,14 +494,14 @@ then
               --disable-decoders \
               --disable-demuxers \
               --disable-parsers \
+              --disable-bsfs \
               --enable-demuxer=h264 \
               --enable-demuxer=mjpeg \
               --enable-parser=h264 \
               --enable-parser=mjpeg \
               --enable-decoder=h264 \
               --enable-decoder=mjpeg \
-              --enable-decoder=rawvideo \
-              --enable-memalign-hack
+              --enable-decoder=rawvideo
   make
   make install
   echo -n $FFMPEG_VERSION > $FFMPEG_PREFIX_DIR/done
@@ -709,17 +704,18 @@ fi
 # QREncode
 
 QRENCODE_PREFIX_DIR="$DEP_DIR/libqrencode"
-QRENCODE_VERSION=3.4.4
-QRENCODE_HASH="efe5188b1ddbcbf98763b819b146be6a90481aac30cfc8d858ab78a19cde1fa5"
+QRENCODE_VERSION=4.0.2
+QRENCODE_HASH="c9cb278d3b28dcc36b8d09e8cad51c0eca754eb004cb0247d4703cb4472b58b4"
+QRENCODE_FILENAME="qrencode-$QRENCODE_VERSION.tar.bz2"
 if [ ! -f "$QRENCODE_PREFIX_DIR/done" ]
 then
   rm -rf "$QRENCODE_PREFIX_DIR"
   mkdir -p "$QRENCODE_PREFIX_DIR"
 
-  wget https://fukuchi.org/works/qrencode/qrencode-$QRENCODE_VERSION.tar.bz2
-  check_sha256 "$QRENCODE_HASH" "qrencode-$QRENCODE_VERSION.tar.bz2"
-  bsdtar --no-same-owner --no-same-permissions -xf qrencode*.tar.bz2
-  rm qrencode*.tar.bz2
+  wget https://fukuchi.org/works/qrencode/$QRENCODE_FILENAME
+  check_sha256 "$QRENCODE_HASH" "$QRENCODE_FILENAME"
+  bsdtar --no-same-owner --no-same-permissions -xf "$QRENCODE_FILENAME"
+  rm $QRENCODE_FILENAME
   cd qrencode*
 
   CFLAGS="-O2 -g0" ./configure --host="$ARCH-w64-mingw32" \
@@ -745,15 +741,16 @@ fi
 EXIF_PREFIX_DIR="$DEP_DIR/libexif"
 EXIF_VERSION=0.6.21
 EXIF_HASH="16cdaeb62eb3e6dfab2435f7d7bccd2f37438d21c5218ec4e58efa9157d4d41a"
+EXIF_FILENAME=libexif-$EXIF_VERSION.tar.bz2
 if [ ! -f "$EXIF_PREFIX_DIR/done" ]
 then
   rm -rf "$EXIF_PREFIX_DIR"
   mkdir -p "$EXIF_PREFIX_DIR"
 
-  wget https://sourceforge.net/projects/libexif/files/libexif/0.6.21/libexif-$EXIF_VERSION.tar.bz2
-  check_sha256 "$EXIF_HASH" "libexif-$EXIF_VERSION.tar.bz2"
-  bsdtar --no-same-owner --no-same-permissions -xf libexif*.tar.bz2
-  rm libexif*.tar.bz2
+  wget https://sourceforge.net/projects/libexif/files/libexif/$EXIF_VERSION/$EXIF_FILENAME
+  check_sha256 "$EXIF_HASH" "$EXIF_FILENAME"
+  bsdtar --no-same-owner --no-same-permissions -xf $EXIF_FILENAME
+  rm $EXIF_FILENAME
   cd libexif*
 
   CFLAGS="-O2 -g0" ./configure --host="$ARCH-w64-mingw32" \
@@ -778,15 +775,16 @@ fi
 OPUS_PREFIX_DIR="$DEP_DIR/libopus"
 OPUS_VERSION=1.2.1
 OPUS_HASH="cfafd339ccd9c5ef8d6ab15d7e1a412c054bf4cb4ecbbbcc78c12ef2def70732"
+OPUS_FILENAME="opus-$OPUS_VERSION.tar.gz"
 if [ ! -f "$OPUS_PREFIX_DIR/done" ]
 then
   rm -rf "$OPUS_PREFIX_DIR"
   mkdir -p "$OPUS_PREFIX_DIR"
 
-  wget https://archive.mozilla.org/pub/opus/opus-$OPUS_VERSION.tar.gz
-  check_sha256 "$OPUS_HASH" "opus-$OPUS_VERSION.tar.gz"
-  bsdtar --no-same-owner --no-same-permissions -xf opus*.tar.gz
-  rm opus*.tar.gz
+  wget "https://archive.mozilla.org/pub/opus/$OPUS_FILENAME"
+  check_sha256 "$OPUS_HASH" "$OPUS_FILENAME"
+  bsdtar --no-same-owner --no-same-permissions -xf "$OPUS_FILENAME"
+  rm $OPUS_FILENAME
   cd opus*
 
   CFLAGS="-O2 -g0" ./configure --host="$ARCH-w64-mingw32" \
@@ -809,17 +807,18 @@ fi
 # Sodium
 
 SODIUM_PREFIX_DIR="$DEP_DIR/libsodium"
-SODIUM_VERSION=1.0.15
-SODIUM_HASH="fb6a9e879a2f674592e4328c5d9f79f082405ee4bb05cb6e679b90afe9e178f4"
+SODIUM_VERSION=1.0.16
+SODIUM_HASH="eeadc7e1e1bcef09680fb4837d448fbdf57224978f865ac1c16745868fbd0533"
+SODIUM_FILENAME="libsodium-$SODIUM_VERSION.tar.gz"
 if [ ! -f "$SODIUM_PREFIX_DIR/done" ]
 then
   rm -rf "$SODIUM_PREFIX_DIR"
   mkdir -p "$SODIUM_PREFIX_DIR"
 
-  wget https://download.libsodium.org/libsodium/releases/libsodium-$SODIUM_VERSION.tar.gz
-  check_sha256 "$SODIUM_HASH" "libsodium-$SODIUM_VERSION.tar.gz"
-  bsdtar --no-same-owner --no-same-permissions -xf libsodium*.tar.gz
-  rm libsodium*.tar.gz
+  wget "https://download.libsodium.org/libsodium/releases/$SODIUM_FILENAME"
+  check_sha256 "$SODIUM_HASH" "$SODIUM_FILENAME"
+  bsdtar --no-same-owner --no-same-permissions -xf "$SODIUM_FILENAME"
+  rm "$SODIUM_FILENAME"
   cd libsodium*
 
   ./configure --host="$ARCH-w64-mingw32" \
@@ -841,17 +840,18 @@ fi
 # VPX
 
 VPX_PREFIX_DIR="$DEP_DIR/libvpx"
-VPX_VERSION=1.6.1
-VPX_HASH="1c2c0c2a97fba9474943be34ee39337dee756780fc12870ba1dc68372586a819"
+VPX_VERSION=v1.7.0
+VPX_HASH="1fec931eb5c94279ad219a5b6e0202358e94a93a90cfb1603578c326abfc1238"
+VPX_FILENAME="libvpx-$VPX_VERSION.tar.bz2"
 if [ ! -f "$VPX_PREFIX_DIR/done" ]
 then
   rm -rf "$VPX_PREFIX_DIR"
   mkdir -p "$VPX_PREFIX_DIR"
 
-  wget http://storage.googleapis.com/downloads.webmproject.org/releases/webm/libvpx-$VPX_VERSION.tar.bz2
-  check_sha256 "$VPX_HASH" "libvpx-$VPX_VERSION.tar.bz2"
-  bsdtar --no-same-owner --no-same-permissions -xf libvpx-*.tar.bz2
-  rm libvpx*.tar.bz2
+  wget https://github.com/webmproject/libvpx/archive/$VPX_VERSION.tar.gz -O $VPX_FILENAME
+  check_sha256 "$VPX_HASH" "$VPX_FILENAME"
+  bsdtar --no-same-owner --no-same-permissions -xf "$VPX_FILENAME"
+  rm $VPX_FILENAME
   cd libvpx*
 
   if [[ "$ARCH" == "x86_64" ]]
@@ -884,17 +884,18 @@ fi
 # Toxcore
 
 TOXCORE_PREFIX_DIR="$DEP_DIR/libtoxcore"
-TOXCORE_VERSION=0.2.1
-TOXCORE_HASH=1496164954941b175493fba02bf3115118c0d29feb46cd1ff458a1a11eab1597
+TOXCORE_VERSION=0.2.3
+TOXCORE_HASH=22c52f286c46d3f802edb6978bcf2a53f8301363e2b745784613427a33ba3a34
+TOXCORE_FILENAME="c-toxcore-$TOXCORE_VERSION.tar.gz"
 if [ ! -f "$TOXCORE_PREFIX_DIR/done" ]
 then
   rm -rf "$TOXCORE_PREFIX_DIR"
   mkdir -p "$TOXCORE_PREFIX_DIR"
 
-  wget https://github.com/TokTok/c-toxcore/archive/v$TOXCORE_VERSION.tar.gz -O c-toxcore-$TOXCORE_VERSION.tar.gz
-  check_sha256 "$TOXCORE_HASH" "c-toxcore-$TOXCORE_VERSION.tar.gz"
-  bsdtar --no-same-owner --no-same-permissions -xf c-toxcore*.tar.gz
-  rm c-toxcore*.tar.gz
+  wget https://github.com/TokTok/c-toxcore/archive/v$TOXCORE_VERSION.tar.gz -O $TOXCORE_FILENAME
+  check_sha256 "$TOXCORE_HASH" "$TOXCORE_FILENAME"
+  bsdtar --no-same-owner --no-same-permissions -xf "$TOXCORE_FILENAME"
+  rm "$TOXCORE_FILENAME"
   cd c-toxcore*
 
   mkdir -p build
@@ -964,6 +965,104 @@ then
 else
   echo "Using cached build of mingw-w64-debug-scripts `cat $MINGW_W64_DEBUG_SCRIPTS_PREFIX_DIR/done`"
 fi
+
+
+# NSIS
+
+NSIS_PREFIX_DIR="$DEP_DIR/nsis"
+NSIS_VERSION="Debian Unstable"
+#NSIS_HASH=
+if [ ! -f "$NSIS_PREFIX_DIR/done" ]
+then
+  rm -rf "$NSIS_PREFIX_DIR"
+  mkdir -p "$NSIS_PREFIX_DIR"
+
+  # We want to use NSIS 3, instead of NSIS 2, because it added Windows 8 and 10
+  # support, as well as unicode support. NSIS 3 is not packaged in Debian Stretch
+  # and building it manually appears to be quite a challenge. Luckily it's
+  # packaged in Debian Unstable, so we can backport it to our Debian version
+  # with little effort, utilizing maintainer's build script.
+
+  # Keep the indentation of the next echo command as it is, as apt seems to
+  # ignore preferences starting with whitespace.
+  echo "
+Package: *
+Pin: Release a=unstable
+Pin-Priority: -1
+  " >> /etc/apt/preferences
+  echo "
+  # Needed for NSIS 3
+  deb http://httpredir.debian.org/debian unstable main
+  deb-src http://httpredir.debian.org/debian unstable main
+  " >> /etc/apt/sources.list
+  apt-get update
+  # Get dependencies required for building NSIS
+  apt-get install -y --no-install-recommends \
+    build-essential \
+    devscripts \
+    docbook-xsl-ns \
+    docbook5-xml \
+    dpkg-dev \
+    fakeroot \
+    html2text \
+    libcppunit-dev \
+    mingw-w64 \
+    scons \
+    xsltproc \
+    zlib1g-dev
+  apt-get -t unstable install -y --no-install-recommends debhelper
+  mkdir nsis-build
+  cd nsis-build
+  apt-get -t unstable source nsis
+
+  cd nsis-*
+  # The build script is not parallel enough, this speeds things up greatly
+  sed -i "s/scons / scons -j `nproc` /" debian/rules
+  DEB_BUILD_OPTIONS="parallel=`nproc` nocheck" debuild -b -uc -us
+  cd ..
+  mv nsis-common_*.deb "$NSIS_PREFIX_DIR"
+  mv nsis-doc_*.deb "$NSIS_PREFIX_DIR"
+  mv nsis_*.deb "$NSIS_PREFIX_DIR"
+  mv nsis-pluginapi_*.deb "$NSIS_PREFIX_DIR"
+
+  cd ..
+  rm -rf ./nsis-build
+
+  echo -n $NSIS_VERSION > $NSIS_PREFIX_DIR/done
+else
+  echo "Using cached build of NSIS `cat $NSIS_PREFIX_DIR/done`"
+fi
+# Install NSIS
+dpkg -i "$NSIS_PREFIX_DIR"/nsis-common_*.deb
+dpkg -i "$NSIS_PREFIX_DIR"/nsis-doc_*.deb
+dpkg -i "$NSIS_PREFIX_DIR"/nsis_*.deb
+dpkg -i "$NSIS_PREFIX_DIR"/nsis-pluginapi_*.deb
+
+
+# NSIS ShellExecAsUser plugin
+
+NSISSHELLEXECASUSER_PREFIX_DIR="$DEP_DIR/nsis_shellexecuteasuser"
+NSISSHELLEXECASUSER_VERSION=" "
+NSISSHELLEXECASUSER_HASH="8fc19829e144716a422b15a85e718e1816fe561de379b2b5ae87ef9017490799"
+if [ ! -f "$NSISSHELLEXECASUSER_PREFIX_DIR/done" ]
+then
+  rm -rf "$NSISSHELLEXECASUSER_PREFIX_DIR"
+  mkdir -p "$NSISSHELLEXECASUSER_PREFIX_DIR"
+
+  # Backup: https://web.archive.org/web/20171008011417/http://nsis.sourceforge.net/mediawiki/images/c/c7/ShellExecAsUser.zip
+  wget http://nsis.sourceforge.net/mediawiki/images/c/c7/ShellExecAsUser.zip
+  check_sha256 "$NSISSHELLEXECASUSER_HASH" "ShellExecAsUser.zip"
+  unzip ShellExecAsUser.zip 'ShellExecAsUser.dll'
+
+  mkdir "$NSISSHELLEXECASUSER_PREFIX_DIR/bin"
+  mv ShellExecAsUser.dll "$NSISSHELLEXECASUSER_PREFIX_DIR/bin"
+  rm ShellExecAsUser*
+  echo -n $NSISSHELLEXECASUSER_VERSION > $NSISSHELLEXECASUSER_PREFIX_DIR/done
+else
+  echo "Using cached build of NSIS ShellExecAsUser plugin `cat $NSISSHELLEXECASUSER_PREFIX_DIR/done`"
+fi
+# Install ShellExecAsUser plugin
+cp "$NSISSHELLEXECASUSER_PREFIX_DIR/bin/ShellExecAsUser.dll" /usr/share/nsis/Plugins/x86-ansi/
 
 
 # Stop here if running the second stage on Travis CI
@@ -1102,33 +1201,31 @@ $ARCH-w64-mingw32-strip -s $QTOX_PREFIX_DIR/*.dll
 $ARCH-w64-mingw32-strip -s $QTOX_PREFIX_DIR/*/*.dll
 set -e
 
-# Create installer for releases
-SHELLEXECASUSER_HASH=8fc19829e144716a422b15a85e718e1816fe561de379b2b5ae87ef9017490799
+# Create zip
+cd $QTOX_PREFIX_DIR
+zip qtox-"$ARCH"-"$BUILD_TYPE".zip -r *
+cd -
+
+# Create installer
 if [[ "$BUILD_TYPE" == "release" ]]
 then
   cd windows
-  # we need the NSIS plugin "ShellExecAsUser" which is not included in the Debian nsis package
-  mkdir nsis-plugins
-  wget http://nsis.sourceforge.net/mediawiki/images/c/c7/ShellExecAsUser.zip
-  check_sha256 "$SHELLEXECASUSER_HASH" "ShellExecAsUser.zip"
-  NSIS_PLUGINDIR="./nsis-plugins"
-  unzip "ShellExecAsUser.zip" -d "$NSIS_PLUGINDIR"
-  NSIS_PLUGIN_CMD='!'"addplugindir $NSIS_PLUGINDIR"
 
-  # the installer creation script expects all the files in qtox/*
+  # The installer creation script expects all the files to be in qtox/*
   mkdir qtox
-  cp -R $QTOX_PREFIX_DIR/* ./qtox
+  cp -r $QTOX_PREFIX_DIR/* ./qtox
+  rm ./qtox/*.zip
 
   # Select the installer script for the correct architecture
   if [[ "$ARCH" == "i686" ]]
   then
-    makensis -X"$NSIS_PLUGIN_CMD" qtox.nsi
+    makensis qtox.nsi
   elif [[ "$ARCH" == "x86_64" ]]
   then
-    makensis -X"$NSIS_PLUGIN_CMD" qtox64.nsi
+    makensis qtox64.nsi
   fi
 
-  cp setup-qtox.exe $QTOX_PREFIX_DIR/setup-qtox-"$ARCH".exe
+  cp setup-qtox.exe $QTOX_PREFIX_DIR/setup-qtox-"$ARCH"-"$BUILD_TYPE".exe
   cd ..
 fi
 

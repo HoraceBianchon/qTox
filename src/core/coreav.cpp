@@ -1,6 +1,6 @@
 /*
     Copyright (C) 2013 by Maxim Biro <nurupo.contributions@gmail.com>
-    Copyright © 2014-2015 by The qTox Project Contributors
+    Copyright © 2014-2018 by The qTox Project Contributors
 
     This file is part of qTox, a Qt-based graphical interface for Tox.
 
@@ -483,6 +483,13 @@ void CoreAV::groupCallCallback(void* tox, uint32_t group, uint32_t peer, const i
     Q_UNUSED(tox);
 
     Core* c = static_cast<Core*>(core);
+    const ToxPk peerPk = c->getGroupPeerPk(group, peer);
+    const Settings& s = Settings::getInstance();
+    // don't play the audio if it comes from a muted peer
+    if (s.getBlackList().contains(peerPk.toString())) {
+         return;
+    }
+
     CoreAV* cav = c->getAv();
 
     auto it = cav->groupCalls.find(group);
@@ -499,12 +506,11 @@ void CoreAV::groupCallCallback(void* tox, uint32_t group, uint32_t peer, const i
     }
 
     Audio& audio = Audio::getInstance();
-    if (!call.getPeers()[peer]) {
-        // FIXME: 0 is a valid sourceId, we shouldn't necessarily re-subscribe just because we have 0
-        audio.subscribeOutput(call.getPeers()[peer]);
+    if(!call.havePeer(peer)) {
+        call.addPeer(peer);
     }
 
-    audio.playAudioBuffer(call.getPeers()[peer], data, samples, channels, sample_rate);
+    audio.playAudioBuffer(call.getAlSource(peer), data, samples, channels, sample_rate);
 }
 #else
 void CoreAV::groupCallCallback(void* tox, int group, int peer, const int16_t* data,
@@ -529,12 +535,11 @@ void CoreAV::groupCallCallback(void* tox, int group, int peer, const int16_t* da
     }
 
     Audio& audio = Audio::getInstance();
-    if (!call.getPeers()[peer]) {
-        // FIXME: 0 is a valid sourceId, we shouldn't necessarily re-subscribe just because we have 0
-        audio.subscribeOutput(call.getPeers()[peer]);
+    if(!call.havePeer(peer)) {
+        call.addPeer(peer);
     }
 
-    audio.playAudioBuffer(call.getPeers()[peer], data, samples, channels, sample_rate);
+    audio.playAudioBuffer(call.getAlSource(peer), data, samples, channels, sample_rate);
 }
 #endif
 
@@ -549,9 +554,7 @@ void CoreAV::invalidateGroupCallPeerSource(int group, int peer)
     if (it == groupCalls.end()) {
         return;
     }
-    Audio& audio = Audio::getInstance();
-    audio.unsubscribeOutput(it->second.getPeers()[peer]);
-    it->second.getPeers()[peer] = 0;
+    it->second.removePeer(peer);
 }
 
 /**
@@ -745,7 +748,7 @@ bool CoreAV::isCallOutputMuted(const Friend* f) const
 void CoreAV::invalidateCallSources()
 {
     for (auto& kv : groupCalls) {
-        kv.second.getPeers().clear();
+        kv.second.clearPeers();
     }
 
     for (auto& kv : calls) {

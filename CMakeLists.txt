@@ -255,6 +255,10 @@ set(${PROJECT_NAME}_SOURCES
   src/core/toxfile.h
   src/core/toxid.cpp
   src/core/toxid.h
+  src/core/toxlogger.cpp
+  src/core/toxlogger.h
+  src/core/toxoptions.cpp
+  src/core/toxoptions.h
   src/core/toxpk.cpp
   src/core/toxpk.h
   src/core/toxstring.cpp

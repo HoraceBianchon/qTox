@@ -1,5 +1,5 @@
 /*
-    Copyright © 2014-2015 by The qTox Project Contributors
+    Copyright © 2014-2018 by The qTox Project Contributors
 
     This file is part of qTox, a Qt-based graphical interface for Tox.
 
@@ -40,7 +40,6 @@ NetCamView::NetCamView(int friendId, QWidget* parent)
     const ToxPk pk = FriendList::findFriend(friendId)->getPublicKey();
     videoSurface = new VideoSurface(Nexus::getProfile()->loadAvatar(pk), this);
     videoSurface->setMinimumHeight(256);
-    videoSurface->setContentsMargins(6, 6, 6, 6);
 
     verLayout->insertWidget(0, videoSurface, 1);
 
@@ -144,4 +143,13 @@ void NetCamView::updateFrameSize(QSize size)
         selfFrame->setMaximumWidth(selfFrame->maximumHeight() * selfVideoSurface->getRatio());
     else
         selfFrame->setMaximumHeight(selfFrame->maximumWidth() / selfVideoSurface->getRatio());
+}
+
+void NetCamView::toggleVideoPreview()
+{
+    if (selfFrame->isHidden()) {
+        selfFrame->show();
+    } else {
+        selfFrame->hide();
+    }
 }

@@ -1,5 +1,5 @@
 /*
-    Copyright © 2015-2017 by The qTox Project Contributors
+    Copyright © 2015-2018 by The qTox Project Contributors
 
     This file is part of qTox, a Qt-based graphical interface for Tox.
 
@@ -109,6 +109,7 @@ ContentDialog::ContentDialog(QWidget* parent)
 
     setMinimumSize(minSize);
     setAttribute(Qt::WA_DeleteOnClose);
+    setObjectName("detached");
 
     QByteArray geometry = s.getDialogGeometry();
 
@@ -120,6 +121,8 @@ ContentDialog::ContentDialog(QWidget* parent)
 
     SplitterRestorer restorer(splitter);
     restorer.restore(s.getDialogSplitterState(), size());
+
+    username = Core::getInstance()->getUsername();
 
     currentDialog = this;
     setAcceptDrops(true);

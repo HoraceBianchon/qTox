@@ -1,6 +1,6 @@
 /*
     Copyright (C) 2013 by Maxim Biro <nurupo.contributions@gmail.com>
-    Copyright © 2014-2015 by The qTox Project Contributors
+    Copyright © 2014-2018 by The qTox Project Contributors
 
     This file is part of qTox, a Qt-based graphical interface for Tox.
 
@@ -166,6 +166,7 @@ signals:
     void closeToTrayChanged(bool enabled);
     void lightTrayIconChanged(bool enabled);
     void minimizeToTrayChanged(bool enabled);
+    void notifyChanged(bool enabled);
     void showWindowChanged(bool enabled);
     void makeToxPortableChanged(bool enabled);
     void busySoundChanged(bool enabled);
@@ -281,6 +282,9 @@ public:
     bool getForceTCP() const override;
     void setForceTCP(bool enabled) override;
 
+    bool getEnableLanDiscovery() const override;
+    void setEnableLanDiscovery(bool enabled) override;
+
     QString getProxyAddr() const override;
     void setProxyAddr(const QString& address) override;
 
@@ -294,6 +298,7 @@ public:
 
     SIGNAL_IMPL(Settings, enableIPv6Changed, bool enabled)
     SIGNAL_IMPL(Settings, forceTCPChanged, bool enabled)
+    SIGNAL_IMPL(Settings, enableLanDiscoveryChanged, bool enabled)
     SIGNAL_IMPL(Settings, proxyTypeChanged, ICoreSettings::ProxyType type)
     SIGNAL_IMPL(Settings, proxyAddressChanged, const QString& address)
     SIGNAL_IMPL(Settings, proxyPortChanged, quint16 port)
@@ -310,6 +315,9 @@ public:
 
     bool getCheckUpdates() const;
     void setCheckUpdates(bool newValue);
+
+    bool getNotify() const;
+    void setNotify(bool newValue);
 
     bool getShowWindow() const;
     void setShowWindow(bool newValue);
@@ -345,6 +353,8 @@ public:
     void setAudioThreshold(qreal percent) override;
 
     int getOutVolume() const override;
+    int getOutVolumeMin() const override { return 0; }
+    int getOutVolumeMax() const override { return 100; }
     void setOutVolume(int volume) override;
 
     int getAudioBitrate() const override;
@@ -576,6 +586,7 @@ private:
     bool lightTrayIcon;
     bool useEmoticons;
     bool checkUpdates;
+    bool notify;
     bool showWindow;
     bool showInFront;
     bool notifySound;
@@ -583,6 +594,7 @@ private:
     bool groupAlwaysNotify;
 
     bool forceTCP;
+    bool enableLanDiscovery;
 
     ICoreSettings::ProxyType proxyType;
     QString proxyAddr;

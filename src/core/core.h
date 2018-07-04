@@ -1,6 +1,6 @@
 /*
     Copyright (C) 2013 by Maxim Biro <nurupo.contributions@gmail.com>
-    Copyright © 2014-2017 by The qTox Project Contributors
+    Copyright © 2014-2018 by The qTox Project Contributors
 
     This file is part of qTox, a Qt-based graphical interface for Tox.
 
@@ -184,6 +184,7 @@ signals:
     void fileTransferInfo(ToxFile file);
     void fileTransferRemotePausedUnpaused(ToxFile file, bool paused);
     void fileTransferBrokenUnbroken(ToxFile file, bool broken);
+    void fileNameChanged();
 
     void fileSendFailed(uint32_t friendId, const QString& fname);
 

@@ -1,5 +1,5 @@
 /*
-    Copyright © 2015 by The qTox Project Contributors
+    Copyright © 2015-2018 by The qTox Project Contributors
 
     This file is part of qTox, a Qt-based graphical interface for Tox.
 
@@ -77,6 +77,7 @@ private:
 private:
     static QMutex fileSendMutex;
     static QHash<uint64_t, ToxFile> fileMap;
+    static QString getCleanFileName(QString filename);
 };
 
 #endif // COREFILE_H

@@ -1,5 +1,5 @@
 /*
-    Copyright © 2014-2017 by The qTox Project Contributors
+    Copyright © 2014-2018 by The qTox Project Contributors
 
     This file is part of qTox, a Qt-based graphical interface for Tox.
 
@@ -50,11 +50,6 @@
  * @class GenericChatForm
  * @brief Parent class for all chatforms. It's provide the minimum required UI
  * elements and methods to work with chat messages.
- *
- * TODO: reword
- * @var GenericChatForm::historyBaselineDate
- * @brief Used by HistoryKeeper to load messages from t to historyBaselineDate
- *        (excluded)
  */
 
 #define SET_STYLESHEET(x) (x)->setStyleSheet(Style::getStylesheet(":/ui/" #x "/" #x ".css"))
@@ -129,7 +124,7 @@ QPushButton* createButton(const QString& name, T* self, Fun onClickSlot)
 
 }
 
-GenericChatForm::GenericChatForm(QWidget* parent)
+GenericChatForm::GenericChatForm(const Contact* contact, QWidget* parent)
     : QWidget(parent, Qt::Window)
     , audioInputFlag(false)
     , audioOutputFlag(false)
@@ -242,6 +237,9 @@ GenericChatForm::GenericChatForm(QWidget* parent)
     retranslateUi();
     Translator::registerHandler(std::bind(&GenericChatForm::retranslateUi, this), this);
 
+    // update header on name/title change
+    connect(contact, &Contact::displayedNameChanged, this, &GenericChatForm::setName);
+
     netcam = nullptr;
 }
 
@@ -311,13 +309,15 @@ void GenericChatForm::showEvent(QShowEvent*)
 bool GenericChatForm::event(QEvent* e)
 {
     // If the user accidentally starts typing outside of the msgEdit, focus it automatically
-    if (e->type() == QEvent::KeyRelease && !msgEdit->hasFocus()) {
+    if (e->type() == QEvent::KeyPress) {
         QKeyEvent* ke = static_cast<QKeyEvent*>(e);
         if ((ke->modifiers() == Qt::NoModifier || ke->modifiers() == Qt::ShiftModifier)
                 && !ke->text().isEmpty()) {
             if (searchForm->isHidden()) {
+                msgEdit->sendKeyEvent(ke);
                 msgEdit->setFocus();
             } else {
+                searchForm->insertEditor(ke->text());
                 searchForm->setFocusEditor();
             }
         }
@@ -472,7 +472,7 @@ void GenericChatForm::onEmoteInsertRequested(QString str)
 
 void GenericChatForm::onSaveLogClicked()
 {
-    QString path = QFileDialog::getSaveFileName(0, tr("Save chat log"));
+    QString path = QFileDialog::getSaveFileName(Q_NULLPTR, tr("Save chat log"));
     if (path.isEmpty())
         return;
 
@@ -665,7 +665,6 @@ void GenericChatForm::clearChatArea(bool notinform)
         addSystemInfoMessage(tr("Cleared"), ChatMessage::INFO, QDateTime::currentDateTime());
 
     earliestMessage = QDateTime(); // null
-    historyBaselineDate = QDateTime::currentDateTime();
 
     emit chatAreaCleared();
 }

@@ -1,5 +1,5 @@
 /*
-    Copyright © 2014-2015 by The qTox Project Contributors
+    Copyright © 2014-2018 by The qTox Project Contributors
 
     This file is part of qTox, a Qt-based graphical interface for Tox.
 
@@ -231,7 +231,7 @@ static inline bool checkIsValidId(const QString& id)
 
 void AddFriendForm::onImportOpenClicked()
 {
-    const QString path = QFileDialog::getOpenFileName(tabWidget, tr("Open contact list"));
+    const QString path = QFileDialog::getOpenFileName(Q_NULLPTR, tr("Open contact list"));
     if (path.isEmpty()) {
         return;
     }

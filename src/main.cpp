@@ -1,5 +1,5 @@
 /*
-    Copyright © 2014-2015 by The qTox Project Contributors
+    Copyright © 2014-2018 by The qTox Project Contributors
 
     This file is part of qTox, a Qt-based graphical interface for Tox.
 
@@ -161,6 +161,9 @@ int main(int argc, char* argv[])
 #endif
 
     a->setApplicationName("qTox");
+#if QT_VERSION >= QT_VERSION_CHECK(5, 7, 0)
+    a->setDesktopFileName("io.github.qtox.qTox");
+#endif
     a->setOrganizationName("Tox");
     a->setApplicationVersion("\nGit commit: " + QString(GIT_VERSION));
 
@@ -328,7 +331,7 @@ int main(int argc, char* argv[])
         !Profile::isEncrypted(profileName)) {
         profile = Profile::loadProfile(profileName);
     } else {
-        LoginScreen loginScreen{};
+        LoginScreen loginScreen{profileName};
         loginScreen.exec();
         profile = loginScreen.getProfile();
         if (profile) {

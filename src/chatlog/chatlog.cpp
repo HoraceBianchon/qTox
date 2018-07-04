@@ -1,5 +1,5 @@
 /*
-    Copyright © 2014-2015 by The qTox Project Contributors
+    Copyright © 2014-2018 by The qTox Project Contributors
 
     This file is part of qTox, a Qt-based graphical interface for Tox.
 
@@ -380,10 +380,10 @@ void ChatLog::insertChatlineOnTop(ChatLine::Ptr l)
     if (!l.get())
         return;
 
-    insertChatlineOnTop(QList<ChatLine::Ptr>() << l);
+    insertChatlinesOnTop(QList<ChatLine::Ptr>() << l);
 }
 
-void ChatLog::insertChatlineOnTop(const QList<ChatLine::Ptr>& newLines)
+void ChatLog::insertChatlinesOnTop(const QList<ChatLine::Ptr>& newLines)
 {
     if (newLines.isEmpty())
         return;
