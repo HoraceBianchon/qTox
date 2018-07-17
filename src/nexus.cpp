@@ -65,11 +65,12 @@ Nexus::Nexus(QObject* parent)
 
 Nexus::~Nexus()
 {
+    Settings::getInstance().saveGlobal();
+    Settings::getInstance().savePersonal();
     delete widget;
     widget = nullptr;
     delete profile;
     profile = nullptr;
-    Settings::getInstance().saveGlobal();
 #ifdef Q_OS_MAC
     delete globalMenuBar;
 #endif
