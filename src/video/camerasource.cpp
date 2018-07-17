@@ -1,5 +1,5 @@
 /*
-    Copyright © 2015 by The qTox Project Contributors
+    Copyright © 2015-2018 by The qTox Project Contributors
 
     This file is part of qTox, a Qt-based graphical interface for Tox.
 
@@ -109,7 +109,11 @@ CameraSource::CameraSource()
     moveToThread(deviceThread);
 
     subscriptions = 0;
+
+// TODO(sudden6): remove code when minimum ffmpeg version >= 4.0
+#if LIBAVFORMAT_VERSION_INT < AV_VERSION_INT(58, 9, 100)
     av_register_all();
+#endif
     avdevice_register_all();
 }
 
@@ -264,7 +268,7 @@ void CameraSource::openDevice()
         return;
     }
 
-    qDebug() << "Opening device " << deviceName;
+    qDebug() << "Opening device" << deviceName << "subscriptions:" << subscriptions;
 
     if (device) {
         device->open();
@@ -381,7 +385,7 @@ void CameraSource::closeDevice()
         return;
     }
 
-    qDebug() << "Closing device " << deviceName;
+    qDebug() << "Closing device" << deviceName << "subscriptions:" << subscriptions;
 
     // Free all remaining VideoFrame
     VideoFrame::untrackFrames(id, true);

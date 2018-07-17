@@ -1,5 +1,5 @@
 /*
-    Copyright © 2014-2015 by The qTox Project Contributors
+    Copyright © 2014-2018 by The qTox Project Contributors
 
     This file is part of qTox, a Qt-based graphical interface for Tox.
 
@@ -48,6 +48,7 @@ class ContentLayout;
 class Core;
 class FilesForm;
 class Friend;
+class FriendChatroom;
 class FriendListWidget;
 class FriendWidget;
 class GenericChatroomWidget;
@@ -218,6 +219,7 @@ private slots:
     void groupInvitesClear();
     void onDialogShown(GenericChatroomWidget* widget);
     void outgoingNotification();
+    void onCallEnd();
     void incomingNotification(uint32_t friendId);
     void onRejectCall(uint32_t friendId);
     void onStopNotification();
@@ -302,9 +304,11 @@ private:
     unsigned int unreadGroupInvites;
     int icon_size;
 
-    QMap<uint32_t, GroupWidget*> groupWidgets;
     QMap<uint32_t, FriendWidget*> friendWidgets;
+    QMap<uint32_t, FriendChatroom*> friendChatrooms;
     QMap<uint32_t, ChatForm*> chatForms;
+
+    QMap<uint32_t, GroupWidget*> groupWidgets;
     QMap<uint32_t, GroupChatForm*> groupChatForms;
 
 #ifdef Q_OS_MAC

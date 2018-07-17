@@ -1,5 +1,5 @@
 /*
-    Copyright © 2015-2016 by The qTox Project Contributors
+    Copyright © 2015-2018 by The qTox Project Contributors
 
     This file is part of qTox, a Qt-based graphical interface for Tox.
 
@@ -63,6 +63,11 @@ QString SearchForm::getSearchPhrase() const
 void SearchForm::setFocusEditor()
 {
     searchLine->setFocus();
+}
+
+void SearchForm::insertEditor(const QString &text)
+{
+    searchLine->insert(text);
 }
 
 void SearchForm::showEvent(QShowEvent* event)

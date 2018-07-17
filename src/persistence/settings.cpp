@@ -1,6 +1,6 @@
 /*
     Copyright (C) 2013 by Maxim Biro <nurupo.contributions@gmail.com>
-    Copyright © 2014-2015 by The qTox Project Contributors
+    Copyright © 2014-2018 by The qTox Project Contributors
 
     This file is part of qTox, a Qt-based graphical interface for Tox.
 
@@ -175,8 +175,8 @@ void Settings::loadGlobal()
         }
         autoAwayTime = s.value("autoAwayTime", 10).toInt();
         checkUpdates = s.value("checkUpdates", true).toBool();
-        notifySound = s.value("notifySound", true).toBool();
-        busySound = s.value("busySound", false).toBool();
+        notifySound = s.value("notifySound", true).toBool(); // note: notifySound and busySound UI elements are now under UI settings
+        busySound = s.value("busySound", false).toBool();    // page, but kept under General in settings file to be backwards compatible
         fauxOfflineMessaging = s.value("fauxOfflineMessaging", true).toBool();
         autoSaveEnabled = s.value("autoSaveEnabled", false).toBool();
         globalAutoAcceptDir = s.value("globalAutoAcceptDir",
@@ -192,6 +192,7 @@ void Settings::loadGlobal()
         makeToxPortable = s.value("makeToxPortable", false).toBool();
         enableIPv6 = s.value("enableIPv6", true).toBool();
         forceTCP = s.value("forceTCP", false).toBool();
+        enableLanDiscovery = s.value("enableLanDiscovery", true).toBool();
     }
     s.endGroup();
 
@@ -207,6 +208,7 @@ void Settings::loadGlobal()
     {
         showWindow = s.value("showWindow", true).toBool();
         showInFront = s.value("showInFront", true).toBool();
+        notify = s.value("notify", true).toBool();
         groupAlwaysNotify = s.value("groupAlwaysNotify", true).toBool();
         groupchatPosition = s.value("groupchatPosition", true).toBool();
         separateWindow = s.value("separateWindow", false).toBool();
@@ -267,6 +269,7 @@ void Settings::loadGlobal()
         audioInGainDecibel = s.value("inGain", 0).toReal();
         audioThreshold = s.value("audioThreshold", 0).toReal();
         outVolume = s.value("outVolume", 100).toInt();
+        enableTestSound = s.value("enableTestSound", true).toBool();
         audioBitrate = s.value("audioBitrate", 64).toInt();
         enableBackend2 = false;
         #ifdef USE_FILTERAUDIO
@@ -507,6 +510,7 @@ void Settings::saveGlobal()
         s.setValue("makeToxPortable", makeToxPortable);
         s.setValue("enableIPv6", enableIPv6);
         s.setValue("forceTCP", forceTCP);
+        s.setValue("enableLanDiscovery", enableLanDiscovery);
         s.setValue("dbSyncType", static_cast<int>(dbSyncType));
     }
     s.endGroup();
@@ -523,6 +527,7 @@ void Settings::saveGlobal()
     {
         s.setValue("showWindow", showWindow);
         s.setValue("showInFront", showInFront);
+        s.setValue("notify", notify);
         s.setValue("groupAlwaysNotify", groupAlwaysNotify);
         s.setValue("separateWindow", separateWindow);
         s.setValue("dontGroupWindows", dontGroupWindows);
@@ -571,6 +576,7 @@ void Settings::saveGlobal()
         s.setValue("inGain", audioInGainDecibel);
         s.setValue("audioThreshold", audioThreshold);
         s.setValue("outVolume", outVolume);
+        s.setValue("enableTestSound", enableTestSound);
         s.setValue("audioBitrate", audioBitrate);
         s.setValue("enableBackend2", enableBackend2);
     }
@@ -1223,6 +1229,22 @@ void Settings::setForceTCP(bool enabled)
     }
 }
 
+bool Settings::getEnableLanDiscovery() const
+{
+    QMutexLocker locker{&bigLock};
+    return enableLanDiscovery;
+}
+
+void Settings::setEnableLanDiscovery(bool enabled)
+{
+    QMutexLocker locker{&bigLock};
+
+    if (enabled != enableLanDiscovery) {
+        enableLanDiscovery = enabled;
+        emit enableLanDiscoveryChanged(enableLanDiscovery);
+    }
+}
+
 QNetworkProxy Settings::getProxy() const
 {
     QNetworkProxy proxy;
@@ -1645,6 +1667,21 @@ void Settings::setCheckUpdates(bool newValue)
     if (newValue != checkUpdates) {
         checkUpdates = newValue;
         emit checkUpdatesChanged(checkUpdates);
+    }
+}
+
+bool Settings::getNotify() const
+{
+    QMutexLocker locker{&bigLock};
+    return notify;
+}
+
+void Settings::setNotify(bool newValue)
+{
+    QMutexLocker locker{&bigLock};
+    if (newValue != notify) {
+        notify = newValue;
+        emit notifyChanged(notify);
     }
 }
 

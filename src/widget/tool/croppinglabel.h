@@ -1,5 +1,5 @@
 /*
-    Copyright © 2014-2015 by The qTox Project Contributors
+    Copyright © 2014-2018 by The qTox Project Contributors
 
     This file is part of qTox, a Qt-based graphical interface for Tox.
 
@@ -35,9 +35,10 @@ public slots:
     void setEditable(bool editable);
     void setElideMode(Qt::TextElideMode elide);
 
-    void setText(const QString& text);
     QString fullText();
 
+public slots:
+    void setText(const QString& text);
     void minimizeMaximumWidth();
 
 signals:

@@ -72,6 +72,14 @@ then
   exit 1
 fi
 
+# make the build stage visible to the deploy process
+touch "$STAGE"
+
+# make the build type visible to the deploy process
+touch "$BUILD_TYPE"
+
+# for debugging of the stage files
+echo $PWD
 
 # Just make sure those exist, makes logic easier
 mkdir -p "$CACHE_DIR"
@@ -103,11 +111,10 @@ ls -lbh "$PWD"
 # Build
 sudo docker run --rm \
                 -v "$PWD/workspace":/workspace \
-                -v "$PWD/windows/cross-compile":/script \
                 -v "$PWD":/qtox \
                 -e TRAVIS_CI_STAGE="$STAGE" \
                 debian:stretch-slim \
-                /bin/bash /script/build.sh "$ARCH" "$BUILD_TYPE"
+                /bin/bash /qtox/windows/cross-compile/build.sh "$ARCH" "$BUILD_TYPE"
 
 # Purely for debugging
 ls -lbh workspace/"$ARCH"/dep-cache/
